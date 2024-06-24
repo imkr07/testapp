@@ -15,6 +15,7 @@ def send_email(subject, message):
         smtp_obj = smtplib.SMTP(SMTP_SERVER)
         email_message = f"From: {SENDER}\nTo: {RECEIVER}\nSubject: {subject}\n\n{message}"
         smtp_obj.sendmail(SENDER, RECEIVER, email_message)
+        smtp_obj.quit()
         print("Mail sent")
     except Exception as e:
         print("Error: couldn't send the mail")
@@ -38,9 +39,13 @@ def check_service(url, service_name):
 prometheus_status = check_service(PROMETHEUS_URL, "Prometheus")
 grafana_status = check_service(GRAFANA_URL, "Grafana")
 
-# Determine the email message based on the services' status
-if "down" in prometheus_status or "down" in grafana_status:
-    message = f"Prometheus status: {prometheus_status}\nGrafana status: {grafana_status}"
-    send_email(SUBJECT, message)
-else:
-    print("All services are running fine.")
+# Debug prints to trace the values
+print(f"Prometheus status: {prometheus_status}")
+print(f"Grafana status: {grafana_status}")
+
+# Prepare the email message
+message = f"Prometheus status: {prometheus_status}\nGrafana status: {grafana_status}\n"
+
+# Always send an email
+print("Sending email...")
+send_email(SUBJECT, message)
