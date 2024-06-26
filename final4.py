@@ -42,30 +42,23 @@ services = [
     check_service(GRAFANA_URL, "Grafana")
 ]
 
-# Get current time
-current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 # Prepare data for table
-table_data = [["Time", "Service", "Status"]]
+table_data = [["Service", "Status"]]
 for service in services:
-    table_data.append([current_time, service[0], service[1]])
+    table_data.append([service[0], service[1]])
 
 # Create the table as a string
 table = ""
 for row in table_data:
-    table += "{:<20} {:<10} {:<6}\n".format(*row)
+    table += "{:<20} {:<6}\n".format(*row)
 
 # Print the table to console
 print(table)
 
-# Send email if any service is down
-down_services = [service for service in services if service[1] == "DOWN"]
-if down_services:
-    message = "The following services are down:\n\n"
-    message += table
-    message += "\n\nWork on it immediately."
-    
-    print("Sending email...")
-    send_email(SUBJECT, message)
-else:
-    print("All services are running fine.")
+# Send email with the table content
+message = "Status of Monitoring Services:\n\n"
+message += table
+message += "\n\nPlease review the status."
+
+print("Sending email...")
+send_email(SUBJECT, message)
