@@ -1,0 +1,62 @@
+---
+- name: Install and configure Nginx from a specific URL
+  hosts: web_servers
+  become: true
+
+  vars:
+    nginx_download_url: "http://nginx.org/download/nginx-1.20.1.tar.gz"
+    nginx_download_dir: "/tmp/nginx"
+    nginx_install_dir: "/usr/local/nginx"
+    export_command: "export MY_VAR=my_value"
+
+  tasks:
+    - name: Create download directory
+      file:
+        path: "{{ nginx_download_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Execute export command
+      shell: "{{ export_command }}"
+      args:
+        executable: /bin/bash
+
+    - name: Download Nginx
+      get_url:
+        url: "{{ nginx_download_url }}"
+        dest: "{{ nginx_download_dir }}/nginx.tar.gz"
+
+    - name: Extract Nginx
+      ansible.builtin.unarchive:
+        src: "{{ nginx_download_dir }}/nginx.tar.gz"
+        dest: "{{ nginx_download_dir }}"
+        remote_src: true
+
+    - name: Compile and install Nginx
+      shell: |
+        cd {{ nginx_download_dir }}/nginx-1.20.1
+        ./configure --prefix={{ nginx_install_dir }}
+        make
+        make install
+
+    - name: Copy nginx configuration file
+      copy:
+        src: files/nginx.conf
+        dest: "{{ nginx_install_dir }}/conf/nginx.conf"
+      notify: Restart Nginx
+
+    - name: Copy index.html file
+      copy:
+        src: files/index.html
+        dest: "{{ nginx_install_dir }}/html/index.html"
+      notify: Restart Nginx
+
+    - name: Ensure Nginx is started
+      shell: "{{ nginx_install_dir }}/sbin/nginx"
+      args:
+        executable: /bin/bash
+      notify: Restart Nginx
+
+  handlers:
+    - name: Restart Nginx
+      shell: "{{ nginx_install_dir }}/sbin/nginx -s reload"
