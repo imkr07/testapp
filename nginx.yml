@@ -9,17 +9,12 @@
     export_command: "export GV_INSTALL_DIR=/colt/devops-nginx-server"
 
   tasks:
-    - name: Execute export command
-      shell: "{{ export_command }}"
+    - name: Setup environment and create directories
+      shell: |
+        mkdir -p /colt/devops-nginx-server/
+        export GV_INSTALL_DIR=/colt/devops-nginx-server
       args:
         executable: /bin/bash
-      tags: install-nginx
-
-    - name: Create download directory
-      file:
-        path: "{{ nginx_download_dir }}"
-        state: directory
-        mode: '0755'
       tags: install-nginx
 
     - name: Copy nginx.sh script
