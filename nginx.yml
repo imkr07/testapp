@@ -1,0 +1,98 @@
+---
+- name: Install and configure Nginx
+  hosts: fbservers
+  gather_facts: false
+
+  vars:
+    nginx_download_dir: "/colt/devops-nginx-server/goldenversions"
+    nginx_install_dir: "/colt/devops-nginx-server/goldenversions"
+    export_command: "export GV_INSTALL_DIR=/colt/devops-nginx-server"
+
+  tasks:
+    - name: Execute export command
+      shell: "{{ export_command }}"
+      args:
+        executable: /bin/bash
+      tags: install-nginx
+
+    - name: Create download directory
+      file:
+        path: "{{ nginx_download_dir }}"
+        state: directory
+        mode: '0755'
+      tags: install-nginx
+
+    - name: Copy nginx.sh script
+      copy:
+        src: files/nginx.sh
+        dest: "{{ nginx_download_dir }}/nginx.sh"
+        mode: '0755'
+      tags: install-nginx
+
+    - name: Download and install Nginx
+      shell: "{{ nginx_download_dir }}/nginx.sh"
+      args:
+        executable: /bin/bash
+      tags: install-nginx
+
+    - name: Ensure nginx conf directory exists
+      file:
+        path: "{{ nginx_install_dir }}/nginx-1.20.1/config"
+        state: directory
+        mode: '0755'
+      tags: install-nginx
+
+    - name: Ensure nginx html directory exists
+      file:
+        path: "{{ nginx_install_dir }}/nginx-1.20.1/html"
+        state: directory
+        mode: '0755'
+      tags: install-nginx
+
+    - name: Copy nginx configuration file
+      copy:
+        src: files/nginx.conf
+        dest: "{{ nginx_install_dir }}/nginx-1.20.1/config/nginx.conf"
+      notify: Restart Nginx
+      tags: install-nginx
+
+    - name: Copy index.html file
+      copy:
+        src: files/index.html
+        dest: "{{ nginx_install_dir }}/nginx-1.20.1/html/index.html"
+      notify: Restart Nginx
+      tags: install-nginx
+
+    - name: Verify Nginx installation directory
+      stat:
+        path: "{{ nginx_install_dir }}/nginx-1.20.1/sbin/nginx"
+      register: nginx_bin
+      tags: install-nginx
+
+    - name: Debug Nginx installation directory
+      debug:
+        msg: "Nginx binary exists: {{ nginx_bin.stat.exists }}"
+      tags: install-nginx
+
+    - name: Start Nginx server
+      shell: "./nginx -p {{ nginx_install_dir }}/nginx-1.20.1 -c {{ nginx_install_dir }}/nginx-1.20.1/config/nginx.conf"
+      args:
+        chdir: "{{ nginx_install_dir }}/nginx-1.20.1/sbin"
+        executable: /bin/bash
+      when: nginx_bin.stat.exists
+      notify: Restart Nginx
+      tags: install-nginx
+
+    - name: Fail if Nginx binary does not exist
+      fail:
+        msg: "Nginx binary does not exist at {{ nginx_install_dir }}/nginx-1.20.1/sbin/nginx"
+      when: not nginx_bin.stat.exists
+      tags: install-nginx
+
+  handlers:
+    - name: Restart Nginx
+      shell: "./nginx -s reload -p {{ nginx_install_dir }}/nginx-1.20.1 -c {{ nginx_install_dir }}/nginx-1.20.1/config/nginx.conf"
+      args:
+        chdir: "{{ nginx_install_dir }}/nginx-1.20.1/sbin"
+        executable: /bin/bash
+      tags: install-nginx
