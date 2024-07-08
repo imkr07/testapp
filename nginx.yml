@@ -31,6 +31,7 @@
         chdir: "{{ nginx_download_dir }}"
         executable: /bin/bash
       register: nginx_install
+      ignore_errors: yes
       tags: install-nginx
 
     - name: Debug Nginx installation
@@ -38,20 +39,16 @@
         var: nginx_install
       tags: install-nginx
 
-    - name: Copy nginx configuration files recursively
+    - name: Copy nginx configuration and web files
       copy:
-        src: files/nginx_config/
-        dest: "{{ nginx_install_dir }}/config/"
-        recurse: yes
-      notify: Restart Nginx
+        src: files/nginx.conf
+        dest: "{{ nginx_install_dir }}/config/nginx.conf"
       tags: install-nginx
 
-    - name: Copy web files recursively
+    - name: Copy index.html file
       copy:
-        src: files/html/
-        dest: "{{ nginx_install_dir }}/html/"
-        recurse: yes
-      notify: Restart Nginx
+        src: files/index.html
+        dest: "{{ nginx_install_dir }}/html/index.html"
       tags: install-nginx
 
     - name: Start Nginx server
