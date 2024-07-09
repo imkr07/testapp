@@ -1,0 +1,7 @@
+sed -i 's/\s\s*/ /g' message-broker-bpsi-properties.xml
+sed -i -E 's/(<entry[^>]* name="[^"]*assword"[^>]* value=")[^"]*("[^>]*>)/\1*********\2/g' message-broker-bpsi-properties.xml
+sed -i -E 's/(<[^>]* password="|password=&quot;)[^"]*("[^>]*>)/\1******\2/g' message-broker-bpsi-properties.xml
+sed -i -E 's/&quot;/"/g' message-broker-bpsi-properties.xml
+
+
+cat message-broker-bpsi-properties.xml | sed 's/\s\s*/ /g' | sed -E 's/(<entry[^>]* name="[^"]*assword"[^>]* value=")[^"]*("[^>]*>)/\1*********\2/g' | sed -E 's/(<[^>]* password="|password=&quot;)[^"]*("[^>]*>)/\1******\2/g' | sed -E 's/&quot;/"/g' > sanitized-message-broker-bpsi-properties.xml
