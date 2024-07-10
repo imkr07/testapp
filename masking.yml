@@ -1,0 +1,21 @@
+---
+- name: Mask passwords and copy XML files
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Ensure destination directory exists
+      file:
+        path: /path/to/destination/directory
+        state: directory
+
+    - name: Mask passwords in XML files and copy to another folder
+      find:
+        paths: ./files
+        patterns: "*.properties.xml"
+      register: xml_files
+
+    - name: Mask and copy each XML file
+      copy:
+        content: "{{ lookup('file', item.path) | regex_replace('\s\s*', ' ') | regex_replace('(<entry[^>]* name=\"[^"]*assword\"[^>]* value=\")[^"]*(\"[^>]*>)', '\\1*********\\2') | regex_replace('(<[^>]* password=\"|password=&quot;)[^"]*(\"[^>]*>)', '\\1******\\2') | regex_replace('&quot;', '\"') }}"
+        dest: "/path/to/destination/directory/{{ item.path | basename }}"
+      loop: "{{ xml_files.files }}"
