@@ -1,5 +1,52 @@
 ---
 - name: Mask passwords and copy XML files
+  hosts: fbservers
+  gather_facts: false
+  tasks:
+    - name: Ensure destination directory exists
+      file:
+        path: /colt/devops/config/masked_pre-deployed_files/
+        state: directory
+      tags: masking
+
+    - name: Find XML files
+      find:
+        paths: /colt/devops/config/pre-deployment/
+        patterns: "*properties.xml"
+      register: xml_files
+      tags: masking
+
+    - name: Debug XML files
+      debug:
+        var: xml_files
+      tags: masking
+
+    - name: Mask passwords in XML files and copy to another folder
+      block:
+        - name: Mask passwords using sed command
+          shell: |
+            sed -i 's/\\s\\s*/ /g' {{ item.path }} && \
+            sed -i -E 's/(<entry[^>]* name=\"[^"]*assword\"[^>]* value=\")[^"]*(\"[^>]*>)/\1*********\2/g' {{ item.path }} && \
+            sed -i -E 's/(<[^>]* password=\"|password=&quot;)[^"]*(\"[^>]*>)/\1******\2/g' {{ item.path }} && \
+            sed -i -E 's/&quot;/\"/g' {{ item.path }}
+          loop: "{{ xml_files.files }}"
+          loop_control:
+            label: "{{ item.path }}"
+          tags: masking
+
+        - name: Copy masked files to destination directory
+          copy:
+            src: "{{ item.path }}"
+            dest: "/colt/devops/config/masked_pre-deployed_files/{{ item.path | basename }}"
+          loop: "{{ xml_files.files }}"
+          loop_control:
+            label: "{{ item.path }}"
+          tags: masking
+
+
+
+---
+- name: Mask passwords and copy XML files
   hosts: localhost
   gather_facts: false
   tasks:
