@@ -8,6 +8,45 @@
         path: /path/to/destination/directory
         state: directory
 
+    - name: Find XML files
+      find:
+        paths: /path/to/source/directory
+        patterns: "*.properties.xml"
+      register: xml_files
+
+    - name: Mask passwords in XML files and copy to another folder
+      block:
+        - name: Mask passwords using sed command
+          shell: |
+            sed -i 's/\\s\\s*/ /g' {{ item.path }} && \
+            sed -i -E 's/(<entry[^>]* name=\"[^"]*assword\"[^>]* value=\")[^"]*(\"[^>]*>)/\1*********\2/g' {{ item.path }} && \
+            sed -i -E 's/(<[^>]* password=\"|password=&quot;)[^"]*(\"[^>]*>)/\1******\2/g' {{ item.path }} && \
+            sed -i -E 's/&quot;/\"/g' {{ item.path }}
+          loop: "{{ xml_files.files }}"
+          loop_control:
+            label: "{{ item.path }}"
+
+        - name: Copy masked files to destination directory
+          copy:
+            src: "{{ item.path }}"
+            dest: "/path/to/destination/directory/{{ item.path | basename }}"
+          loop: "{{ xml_files.files }}"
+          loop_control:
+            label: "{{ item.path }}"
+
+
+
+
+---
+- name: Mask passwords and copy XML files
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Ensure destination directory exists
+      file:
+        path: /path/to/destination/directory
+        state: directory
+
     - name: Mask passwords in XML files and copy to another folder
       find:
         paths: ./files
