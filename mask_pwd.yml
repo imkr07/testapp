@@ -1,11 +1,14 @@
-- name: Mask passwords in XML files
+- name: Mask passwords and change destination folder
   hosts: all
   tasks:
-    - name: Mask passwords in message broker property files
-      lineinfile:
-        path: "{{ HOME_DIR }}/FenergoMessageBroker/config/{{ item }}"
-        regexp: 'password=.*'
-        line: 'password=****'
+    - name: Create destination folder if it does not exist
+      file:
+        path: "{{ NEW_DEST_DIR }}"
+        state: directory
+
+    - name: Read and mask passwords in message broker property files
+      command: cat "{{ HOME_DIR }}/FenergoMessageBroker/config/{{ item }}"
+      register: file_contents
       with_items:
         - message-broker-avox-properties.xml
         - message-broker-bpsi-properties.xml
@@ -19,4 +22,12 @@
         - message-broker-scheduler-properties.xml
         - message-broker-scistamping-properties.xml
         - message-broker-sqltasks-properties.xml
+      changed_when: false
+      delegate_to: localhost
+
+    - name: Mask passwords and write to new destination folder
+      copy:
+        content: "{{ item.stdout | regex_replace('password=.*', 'password=****') }}"
+        dest: "{{ NEW_DEST_DIR }}/{{ item.item }}"
+      with_items: "{{ file_contents.results }}"
       tags: mask_passwords
