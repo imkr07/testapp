@@ -1,0 +1,22 @@
+- name: Mask passwords in XML files
+  hosts: all
+  tasks:
+    - name: Mask passwords in message broker property files
+      lineinfile:
+        path: "{{ HOME_DIR }}/FenergoMessageBroker/config/{{ item }}"
+        regexp: 'password=.*'
+        line: 'password=****'
+      with_items:
+        - message-broker-avox-properties.xml
+        - message-broker-bpsi-properties.xml
+        - message-broker-canonical-properties.xml
+        - message-broker-core-properties.xml
+        - message-broker-cra-properties.xml
+        - message-broker-filenet-properties.xml
+        - message-broker-icdms-properties.xml
+        - message-broker-inflight-properties.xml
+        - message-broker-nack-properties.xml
+        - message-broker-scheduler-properties.xml
+        - message-broker-scistamping-properties.xml
+        - message-broker-sqltasks-properties.xml
+      tags: mask_passwords
