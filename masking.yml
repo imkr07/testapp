@@ -19,3 +19,45 @@
         content: "{{ lookup('file', item.path) | regex_replace('\s\s*', ' ') | regex_replace('(<entry[^>]* name=\"[^"]*assword\"[^>]* value=\")[^"]*(\"[^>]*>)', '\\1*********\\2') | regex_replace('(<[^>]* password=\"|password=&quot;)[^"]*(\"[^>]*>)', '\\1******\\2') | regex_replace('&quot;', '\"') }}"
         dest: "/path/to/destination/directory/{{ item.path | basename }}"
       loop: "{{ xml_files.files }}"
+
+
+
+
+---
+- name: Mask passwords and copy XML files
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Ensure destination directory exists
+      file:
+        path: /path/to/destination/directory
+        state: directory
+
+    - name: Find XML files
+      find:
+        paths: ./files
+        patterns: "*.properties.xml"
+      register: xml_files
+
+    - name: Mask passwords in XML files and copy to another folder
+      block:
+        - name: Mask passwords using sed command
+          command: >
+            bash -c "cat {{ item.path }} |
+            sed 's/\\s\\s*/ /g' |
+            sed -E 's/(<entry[^>]* name=\"[^"]*assword\"[^>]* value=\")[^"]*(\"[^>]*>)/\1*********\2/g' |
+            sed -E 's/(<[^>]* password=\"|password=&quot;)[^"]*(\"[^>]*>)/\1******\2/g' |
+            sed -E 's/&quot;/\"/g' > /tmp/sanitized-{{ item.path | basename }}"
+          loop: "{{ xml_files.files }}"
+        
+        - name: Copy masked files to destination directory
+          copy:
+            src: "/tmp/sanitized-{{ item.path | basename }}"
+            dest: "/path/to/destination/directory/{{ item.path | basename }}"
+          loop: "{{ xml_files.files }}"
+
+    - name: Clean up temporary sanitized files
+      file:
+        path: "/tmp/sanitized-{{ item.path | basename }}"
+        state: absent
+      loop: "{{ xml_files.files }}"
