@@ -15,30 +15,25 @@
         - properties
         - camel
 
-    - name: Copy -properties.xml files to properties directory
+    - name: Find -properties.xml files
       find:
         paths: "{{ source_dir }}"
         patterns: "*-properties.xml"
       register: properties_files
-    - name: Copy camel.xml files to camel directory
+
+    - name: Find camel.xml files
       find:
         paths: "{{ source_dir }}"
         patterns: "*camel*.xml"
       register: camel_files
 
-    - name: Copy properties files to destination
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ destination_dir }}/properties/{{ item.path | basename }}"
-        mode: '0755'
+    - name: Copy -properties.xml files to properties directory
+      shell: cp -p "{{ item.path }}" "{{ destination_dir }}/properties/{{ item.path | basename }}"
       with_items: "{{ properties_files.files }}"
       ignore_errors: yes
 
-    - name: Copy camel files to destination
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ destination_dir }}/camel/{{ item.path | basename }}"
-        mode: '0755'
+    - name: Copy camel.xml files to camel directory
+      shell: cp -p "{{ item.path }}" "{{ destination_dir }}/camel/{{ item.path | basename }}"
       with_items: "{{ camel_files.files }}"
       ignore_errors: yes
 
