@@ -26,21 +26,11 @@
         patterns: "*camel*.xml"
       register: camel_files
 
-    - name: Mask passwords in properties files and copy to destination
-      command: "cat {{ item.path }}"
-      register: file_content
-      delegate_to: localhost
-      failed_when: false
-      with_items: "{{ properties_files.files }}"
-      when: item.stat.exists
-
-    - name: Write masked properties files to destination
+    - name: Copy properties files to destination
       copy:
-        content: "{{ file_content.stdout | regex_replace('password=.*', 'password=****') }}"
+        src: "{{ item.path }}"
         dest: "{{ destination_dir }}/properties/{{ item.path | basename }}"
       with_items: "{{ properties_files.files }}"
-      delegate_to: localhost
-      when: item.stat.exists
 
     - name: Copy camel files to destination
       copy:
@@ -48,12 +38,14 @@
         dest: "{{ destination_dir }}/camel/{{ item.path | basename }}"
       with_items: "{{ camel_files.files }}"
 
-    - name: Log missing properties files
-      debug:
-        msg: "Properties file not found: {{ item }}"
-      when: properties_files.matched == 0
-
-    - name: Log missing camel files
-      debug:
-        msg: "Camel file not found: {{ item }}"
-      when: camel_files.matched == 0
+    - name: Mask passwords in properties files
+      shell: |
+        cd {{ destination_dir }}/properties
+        for file in *-properties.xml; do
+          cat "$file" | sed 's/\s\s*/ /g' | \
+          sed -E 's/(<entry[^>]* name="[^"]*assword"[^>]* value=")[^"]*("[^>]*>)/\1*********\2/g' | \
+          sed -E 's/(<[^>]* password="|password=&quot;)[^"]*("[^>]*>)/\1******\2/g' | \
+          sed -E 's/&quot;/"/g' > "$file.tmp" && mv "$file.tmp" "$file"
+        done
+      args:
+        executable: /bin/bash
