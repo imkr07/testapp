@@ -10,6 +10,7 @@
       file:
         path: "{{ destination_dir }}/{{ item }}"
         state: directory
+        mode: '0755'
       with_items:
         - properties
         - camel
@@ -26,17 +27,43 @@
         patterns: "*camel*.xml"
       register: camel_files
 
+    - name: Debug found properties files
+      debug:
+        msg: "Found properties file: {{ item.path }}"
+      with_items: "{{ properties_files.files }}"
+
+    - name: Debug found camel files
+      debug:
+        msg: "Found camel file: {{ item.path }}"
+      with_items: "{{ camel_files.files }}"
+
+    - name: Check if properties files exist before copying
+      stat:
+        path: "{{ item.path }}"
+      register: properties_files_stats
+      with_items: "{{ properties_files.files }}"
+
     - name: Copy properties files to destination
       copy:
-        src: "{{ item.path }}"
-        dest: "{{ destination_dir }}/properties/{{ item.path | basename }}"
-      with_items: "{{ properties_files.files }}"
+        src: "{{ item.stat.path }}"
+        dest: "{{ destination_dir }}/properties/{{ item.stat.path | basename }}"
+        mode: '0755'
+      when: item.stat.exists
+      with_items: "{{ properties_files_stats.results }}"
+
+    - name: Check if camel files exist before copying
+      stat:
+        path: "{{ item.path }}"
+      register: camel_files_stats
+      with_items: "{{ camel_files.files }}"
 
     - name: Copy camel files to destination
       copy:
-        src: "{{ item.path }}"
-        dest: "{{ destination_dir }}/camel/{{ item.path | basename }}"
-      with_items: "{{ camel_files.files }}"
+        src: "{{ item.stat.path }}"
+        dest: "{{ destination_dir }}/camel/{{ item.stat.path | basename }}"
+        mode: '0755'
+      when: item.stat.exists
+      with_items: "{{ camel_files_stats.results }}"
 
     - name: Mask passwords in properties files
       shell: |
