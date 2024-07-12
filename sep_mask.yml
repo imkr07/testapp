@@ -2,67 +2,46 @@
   hosts: fbservers
   tags: masking
   vars:
-    deployments:
-      - src: "/colt/devops/config/pre-deployment"
-        dest: "/colt/devops/config/masked_pre-deployment"
-      - src: "/colt/devops/config/post-deployment"
-        dest: "/colt/devops/config/masked_post-deployment"
+    source_dir_pre: "/colt/devops/config/pre-deployment"
+    source_dir_post: "/colt/devops/config/post-deployment"
+    destination_dir_pre: "/colt/devops/config/masked_pre-deployment"
+    destination_dir_post: "/colt/devops/config/masked_post-deployment"
 
   tasks:
-    - name: Create directories in destination
+    - name: Create properties and camel directories in pre-deployment destination
       file:
-        path: "{{ item.dest }}/{{ sub_dir }}"
+        path: "{{ destination_dir_pre }}/{{ item }}"
         state: directory
         mode: '0755'
-      loop: "{{ deployments | map(attribute='dest') | product(['properties', 'camel']) | list }}"
-      loop_control:
-        label: "{{ item[0] }}/{{ item[1] }}"
-      vars:
-        sub_dir: "{{ item[1] }}"
+      with_items:
+        - properties
+        - camel
 
-    - name: Find -properties.xml files
+    - name: Find -properties.xml files in pre-deployment
       find:
-        paths: "{{ item.src }}"
+        paths: "{{ source_dir_pre }}"
         patterns: "*-properties.xml"
-      register: properties_files
-      loop: "{{ deployments }}"
-      loop_control:
-        label: "{{ item.src }}"
+      register: properties_files_pre
 
-    - name: Find camel.xml files
+    - name: Find camel.xml files in pre-deployment
       find:
-        paths: "{{ item.src }}"
+        paths: "{{ source_dir_pre }}"
         patterns: "*camel*.xml"
-      register: camel_files
-      loop: "{{ deployments }}"
-      loop_control:
-        label: "{{ item.src }}"
+      register: camel_files_pre
 
-    - name: Copy -properties.xml files to properties directory
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ item.dest }}/properties/{{ item.path | basename }}"
-        owner: coltuser
-        group: coltuser
-        mode: '0755'
-      loop: "{{ properties_files.results | map(attribute='files') | flatten }}"
-      vars:
-        dest: "{{ deployments[loop.index0].dest }}"
+    - name: Copy -properties.xml files to properties directory in pre-deployment
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_pre }}/properties/{{ item.path | basename }}"
+      with_items: "{{ properties_files_pre.files }}"
+      ignore_errors: yes
 
-    - name: Copy camel.xml files to camel directory
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ item.dest }}/camel/{{ item.path | basename }}"
-        owner: coltuser
-        group: coltuser
-        mode: '0755'
-      loop: "{{ camel_files.results | map(attribute='files') | flatten }}"
-      vars:
-        dest: "{{ deployments[loop.index0].dest }}"
+    - name: Copy camel.xml files to camel directory in pre-deployment
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_pre }}/camel/{{ item.path | basename }}"
+      with_items: "{{ camel_files_pre.files }}"
+      ignore_errors: yes
 
-    - name: Mask passwords in properties files
+    - name: Mask passwords in properties files in pre-deployment
       shell: |
-        cd {{ item }}/properties
+        cd {{ destination_dir_pre }}/properties
         for file in *-properties.xml; do
           cat "$file" | sed 's/\s\s*/ /g' | \
           sed -E 's/(<entry[^>]* name="[^"]*assword"[^>]* value=")[^"]*("[^>]*>)/\1*********\2/g' | \
@@ -71,4 +50,48 @@
         done
       args:
         executable: /bin/bash
-      loop: "{{ deployments | map(attribute='dest') }}"
+      ignore_errors: yes
+
+    - name: Create properties and camel directories in post-deployment destination
+      file:
+        path: "{{ destination_dir_post }}/{{ item }}"
+        state: directory
+        mode: '0755'
+      with_items:
+        - properties
+        - camel
+
+    - name: Find -properties.xml files in post-deployment
+      find:
+        paths: "{{ source_dir_post }}"
+        patterns: "*-properties.xml"
+      register: properties_files_post
+
+    - name: Find camel.xml files in post-deployment
+      find:
+        paths: "{{ source_dir_post }}"
+        patterns: "*camel*.xml"
+      register: camel_files_post
+
+    - name: Copy -properties.xml files to properties directory in post-deployment
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_post }}/properties/{{ item.path | basename }}"
+      with_items: "{{ properties_files_post.files }}"
+      ignore_errors: yes
+
+    - name: Copy camel.xml files to camel directory in post-deployment
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_post }}/camel/{{ item.path | basename }}"
+      with_items: "{{ camel_files_post.files }}"
+      ignore_errors: yes
+
+    - name: Mask passwords in properties files in post-deployment
+      shell: |
+        cd {{ destination_dir_post }}/properties
+        for file in *-properties.xml; do
+          cat "$file" | sed 's/\s\s*/ /g' | \
+          sed -E 's/(<entry[^>]* name="[^"]*assword"[^>]* value=")[^"]*("[^>]*>)/\1*********\2/g' | \
+          sed -E 's/(<[^>]* password="|password=&quot;)[^"]*("[^>]*>)/\1******\2/g' | \
+          sed -E 's/&quot;/"/g' > "$file.tmp" && mv "$file.tmp" "$file"
+        done
+      args:
+        executable: /bin/bash
+      ignore_errors: yes
