@@ -2,12 +2,11 @@
   hosts: fbservers
   tags: masking
   vars:
-    source_dirs:
-      - "/colt/devops/config/pre-deployment"
-      - "/colt/devops/config/post-deployment"
-    destination_dirs:
-      - "/colt/devops/config/masked_pre-deployment"
-      - "/colt/devops/config/masked_post-deployment"
+    deployments:
+      - src: "/colt/devops/config/pre-deployment"
+        dest: "/colt/devops/config/masked_pre-deployment"
+      - src: "/colt/devops/config/post-deployment"
+        dest: "/colt/devops/config/masked_post-deployment"
 
   tasks:
     - name: Create directories in destination
@@ -15,35 +14,51 @@
         path: "{{ item.dest }}/{{ sub_dir }}"
         state: directory
         mode: '0755'
-      with_items:
-        - { src: "{{ source_dirs[0] }}", dest: "{{ destination_dirs[0] }}" }
-        - { src: "{{ source_dirs[1] }}", dest: "{{ destination_dirs[1] }}" }
-      with_nested:
-        - [ 'properties', 'camel' ]
+      loop: "{{ deployments | map(attribute='dest') | product(['properties', 'camel']) | list }}"
+      loop_control:
+        label: "{{ item[0] }}/{{ item[1] }}"
+      vars:
+        sub_dir: "{{ item[1] }}"
 
     - name: Find -properties.xml files
       find:
-        paths: "{{ item }}"
+        paths: "{{ item.src }}"
         patterns: "*-properties.xml"
       register: properties_files
-      with_items: "{{ source_dirs }}"
+      loop: "{{ deployments }}"
+      loop_control:
+        label: "{{ item.src }}"
 
     - name: Find camel.xml files
       find:
-        paths: "{{ item }}"
+        paths: "{{ item.src }}"
         patterns: "*camel*.xml"
       register: camel_files
-      with_items: "{{ source_dirs }}"
+      loop: "{{ deployments }}"
+      loop_control:
+        label: "{{ item.src }}"
 
     - name: Copy -properties.xml files to properties directory
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dirs[item.ansible_loop.index0] }}/properties/{{ item.item.path | basename }}"
-      with_items: "{{ properties_files.results }}"
-      ignore_errors: yes
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ item.dest }}/properties/{{ item.path | basename }}"
+        owner: coltuser
+        group: coltuser
+        mode: '0755'
+      loop: "{{ properties_files.results | map(attribute='files') | flatten }}"
+      vars:
+        dest: "{{ deployments[loop.index0].dest }}"
 
     - name: Copy camel.xml files to camel directory
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dirs[item.ansible_loop.index0] }}/camel/{{ item.item.path | basename }}"
-      with_items: "{{ camel_files.results }}"
-      ignore_errors: yes
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ item.dest }}/camel/{{ item.path | basename }}"
+        owner: coltuser
+        group: coltuser
+        mode: '0755'
+      loop: "{{ camel_files.results | map(attribute='files') | flatten }}"
+      vars:
+        dest: "{{ deployments[loop.index0].dest }}"
 
     - name: Mask passwords in properties files
       shell: |
@@ -56,5 +71,4 @@
         done
       args:
         executable: /bin/bash
-      with_items: "{{ destination_dirs }}"
-      ignore_errors: yes
+      loop: "{{ deployments | map(attribute='dest') }}"
