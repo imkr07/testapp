@@ -27,11 +27,20 @@
       register: camel_files
 
     - name: Mask passwords in properties files and copy to destination
+      command: "cat {{ item.path }}"
+      register: file_content
+      delegate_to: localhost
+      failed_when: false
+      with_items: "{{ properties_files.files }}"
+      when: item.stat.exists
+
+    - name: Write masked properties files to destination
       copy:
-        content: "{{ lookup('file', item.path) | regex_replace('password=.*', 'password=****') }}"
+        content: "{{ file_content.stdout | regex_replace('password=.*', 'password=****') }}"
         dest: "{{ destination_dir }}/properties/{{ item.path | basename }}"
       with_items: "{{ properties_files.files }}"
       delegate_to: localhost
+      when: item.stat.exists
 
     - name: Copy camel files to destination
       copy:
