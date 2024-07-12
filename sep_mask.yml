@@ -1,0 +1,60 @@
+- name: Separate and process XML files
+  hosts: all
+  vars:
+    source_dir: "{{ HOME_DIR }}/FenergoMessageBroker/config"
+    destination_dir: "{{ NEW_DEST_DIR }}"
+    properties_files:
+      - message-broker-avox-properties.xml
+      - message-broker-bpsi-properties.xml
+      - message-broker-canonical-properties.xml
+      - message-broker-core-properties.xml
+      - message-broker-cra-properties.xml
+      - message-broker-filenet-properties.xml
+      - message-broker-icdms-properties.xml
+      - message-broker-inflight-properties.xml
+      - message-broker-nack-properties.xml
+      - message-broker-scheduler-properties.xml
+      - message-broker-scistamping-properties.xml
+      - message-broker-sqltasks-properties.xml
+    camel_files: []
+  tasks:
+    - name: Create destination folder if it does not exist
+      file:
+        path: "{{ destination_dir }}"
+        state: directory
+
+    - name: Ensure source files exist
+      stat:
+        path: "{{ source_dir }}/{{ item }}"
+      register: file_status
+      with_items: "{{ properties_files + camel_files }}"
+
+    - name: Read and mask passwords in properties files
+      command: cat "{{ source_dir }}/{{ item.item }}"
+      register: file_contents
+      when: item.stat.exists and item.item in properties_files
+      with_items: "{{ file_status.results }}"
+      changed_when: false
+      delegate_to: localhost
+
+    - name: Copy and mask passwords in properties files
+      copy:
+        content: "{{ item.stdout | regex_replace('password=.*', 'password=****') }}"
+        dest: "{{ destination_dir }}/properties/{{ item.item }}"
+      when: item is defined and item.stdout is defined
+      with_items: "{{ file_contents.results }}"
+      tags: mask_passwords
+
+    - name: Copy camel files to destination directory
+      copy:
+        src: "{{ source_dir }}/{{ item.item }}"
+        dest: "{{ destination_dir }}/camel/{{ item.item }}"
+      when: item.stat.exists and item.item in camel_files
+      with_items: "{{ file_status.results }}"
+      tags: copy_camel_files
+
+    - name: Log missing files
+      debug:
+        msg: "File not found: {{ item.item }}"
+      when: not item.stat.exists
+      with_items: "{{ file_status.results }}"
