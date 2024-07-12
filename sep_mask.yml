@@ -1,60 +1,50 @@
 - name: Separate and process XML files
-  hosts: all
+  hosts: fbservers
+  tags: masking
   vars:
-    source_dir: "{{ HOME_DIR }}/FenergoMessageBroker/config"
-    destination_dir: "{{ NEW_DEST_DIR }}"
-    properties_files:
-      - message-broker-avox-properties.xml
-      - message-broker-bpsi-properties.xml
-      - message-broker-canonical-properties.xml
-      - message-broker-core-properties.xml
-      - message-broker-cra-properties.xml
-      - message-broker-filenet-properties.xml
-      - message-broker-icdms-properties.xml
-      - message-broker-inflight-properties.xml
-      - message-broker-nack-properties.xml
-      - message-broker-scheduler-properties.xml
-      - message-broker-scistamping-properties.xml
-      - message-broker-sqltasks-properties.xml
-    camel_files: []
+    source_dir: "/colt/devops/config/pre-deployment"
+    destination_dir: "/colt/devops/config/masked_pre-deployment"
+
   tasks:
-    - name: Create destination folder if it does not exist
+    - name: Create properties and camel directories in destination
       file:
-        path: "{{ destination_dir }}"
+        path: "{{ destination_dir }}/{{ item }}"
         state: directory
+      with_items:
+        - properties
+        - camel
 
-    - name: Ensure source files exist
-      stat:
-        path: "{{ source_dir }}/{{ item }}"
-      register: file_status
-      with_items: "{{ properties_files + camel_files }}"
+    - name: Find all -properties.xml files
+      find:
+        paths: "{{ source_dir }}"
+        patterns: "*-properties.xml"
+      register: properties_files
 
-    - name: Read and mask passwords in properties files
-      command: cat "{{ source_dir }}/{{ item.item }}"
-      register: file_contents
-      when: item.stat.exists and item.item in properties_files
-      with_items: "{{ file_status.results }}"
-      changed_when: false
+    - name: Find all camel.xml files
+      find:
+        paths: "{{ source_dir }}"
+        patterns: "*camel*.xml"
+      register: camel_files
+
+    - name: Mask passwords in properties files and copy to destination
+      copy:
+        content: "{{ lookup('file', item.path) | regex_replace('password=.*', 'password=****') }}"
+        dest: "{{ destination_dir }}/properties/{{ item.path | basename }}"
+      with_items: "{{ properties_files.files }}"
       delegate_to: localhost
 
-    - name: Copy and mask passwords in properties files
+    - name: Copy camel files to destination
       copy:
-        content: "{{ item.stdout | regex_replace('password=.*', 'password=****') }}"
-        dest: "{{ destination_dir }}/properties/{{ item.item }}"
-      when: item is defined and item.stdout is defined
-      with_items: "{{ file_contents.results }}"
-      tags: mask_passwords
+        src: "{{ item.path }}"
+        dest: "{{ destination_dir }}/camel/{{ item.path | basename }}"
+      with_items: "{{ camel_files.files }}"
 
-    - name: Copy camel files to destination directory
-      copy:
-        src: "{{ source_dir }}/{{ item.item }}"
-        dest: "{{ destination_dir }}/camel/{{ item.item }}"
-      when: item.stat.exists and item.item in camel_files
-      with_items: "{{ file_status.results }}"
-      tags: copy_camel_files
-
-    - name: Log missing files
+    - name: Log missing properties files
       debug:
-        msg: "File not found: {{ item.item }}"
-      when: not item.stat.exists
-      with_items: "{{ file_status.results }}"
+        msg: "Properties file not found: {{ item }}"
+      when: properties_files.matched == 0
+
+    - name: Log missing camel files
+      debug:
+        msg: "Camel file not found: {{ item }}"
+      when: camel_files.matched == 0
