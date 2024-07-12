@@ -15,55 +15,32 @@
         - properties
         - camel
 
-    - name: Find all -properties.xml files
+    - name: Copy -properties.xml files to properties directory
       find:
         paths: "{{ source_dir }}"
         patterns: "*-properties.xml"
       register: properties_files
-
-    - name: Find all camel.xml files
+    - name: Copy camel.xml files to camel directory
       find:
         paths: "{{ source_dir }}"
         patterns: "*camel*.xml"
       register: camel_files
 
-    - name: Debug found properties files
-      debug:
-        msg: "Found properties file: {{ item.path }}"
-      with_items: "{{ properties_files.files }}"
-
-    - name: Debug found camel files
-      debug:
-        msg: "Found camel file: {{ item.path }}"
-      with_items: "{{ camel_files.files }}"
-
-    - name: Check if properties files exist before copying
-      stat:
-        path: "{{ item.path }}"
-      register: properties_files_stats
-      with_items: "{{ properties_files.files }}"
-
     - name: Copy properties files to destination
       copy:
-        src: "{{ item.stat.path }}"
-        dest: "{{ destination_dir }}/properties/{{ item.stat.path | basename }}"
+        src: "{{ item.path }}"
+        dest: "{{ destination_dir }}/properties/{{ item.path | basename }}"
         mode: '0755'
-      when: item.stat.exists
-      with_items: "{{ properties_files_stats.results }}"
-
-    - name: Check if camel files exist before copying
-      stat:
-        path: "{{ item.path }}"
-      register: camel_files_stats
-      with_items: "{{ camel_files.files }}"
+      with_items: "{{ properties_files.files }}"
+      ignore_errors: yes
 
     - name: Copy camel files to destination
       copy:
-        src: "{{ item.stat.path }}"
-        dest: "{{ destination_dir }}/camel/{{ item.stat.path | basename }}"
+        src: "{{ item.path }}"
+        dest: "{{ destination_dir }}/camel/{{ item.path | basename }}"
         mode: '0755'
-      when: item.stat.exists
-      with_items: "{{ camel_files_stats.results }}"
+      with_items: "{{ camel_files.files }}"
+      ignore_errors: yes
 
     - name: Mask passwords in properties files
       shell: |
@@ -76,3 +53,4 @@
         done
       args:
         executable: /bin/bash
+      ignore_errors: yes
