@@ -1,0 +1,14 @@
+<VirtualHost *:80>
+    ServerName example.com
+
+    # Expose /colt/devops/config/masked_pre-deployment/ as /colt-sa-05_FMB_Configs_Last_Config
+    Alias /colt-sa-05_FMB_Configs_Last_Config "/colt/devops/config/masked_pre-deployment/"
+    <Directory "/colt/devops/config/masked_pre-deployment/">
+        Options Indexes FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+
+    ErrorLog /var/log/httpd/error.log
+    CustomLog /var/log/httpd/access.log combined
+</VirtualHost>
