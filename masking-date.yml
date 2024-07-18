@@ -67,25 +67,25 @@
 
     - name: Create date-based directories for pre-deployment -properties.xml files
       file:
-        path: "{{ destination_dir_pre }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}"
+        path: "{{ destination_dir_pre }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}"
         state: directory
         mode: '0755'
       with_items: "{{ stat_properties_files_pre.results }}"
 
     - name: Create date-based directories for pre-deployment camel.xml files
       file:
-        path: "{{ destination_dir_pre }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}"
+        path: "{{ destination_dir_pre }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}"
         state: directory
         mode: '0755'
       with_items: "{{ stat_camel_files_pre.results }}"
 
     - name: Copy pre-deployment -properties.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_pre }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}/{{ item.item.path | basename }}"
+      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_pre }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}/{{ item.item.path | basename }}"
       with_items: "{{ stat_properties_files_pre.results }}"
       ignore_errors: yes
 
     - name: Copy pre-deployment camel.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_pre }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}/{{ item.item.path | basename }}"
+      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_pre }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}/{{ item.item.path | basename }}"
       with_items: "{{ stat_camel_files_pre.results }}"
       ignore_errors: yes
 
@@ -98,25 +98,25 @@
 
     - name: Create date-based directories for post-deployment -properties.xml files
       file:
-        path: "{{ destination_dir_post }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}"
+        path: "{{ destination_dir_post }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}"
         state: directory
         mode: '0755'
       with_items: "{{ stat_properties_files_post.results }}"
 
     - name: Create date-based directories for post-deployment camel.xml files
       file:
-        path: "{{ destination_dir_post }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}"
+        path: "{{ destination_dir_post }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}"
         state: directory
         mode: '0755'
       with_items: "{{ stat_camel_files_post.results }}"
 
     - name: Copy post-deployment -properties.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_post }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}/{{ item.item.path | basename }}"
+      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_post }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}/{{ item.item.path | basename }}"
       with_items: "{{ stat_properties_files_post.results }}"
       ignore_errors: yes
 
     - name: Copy post-deployment camel.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_post }}/config_{{ item.stat.mtime | to_datetime | strftime('%d/%m/%y') }}/{{ item.item.path | basename }}"
+      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_post }}/config_{{ item.stat.mtime | string | to_datetime | strftime('%d-%m-%y') }}/{{ item.item.path | basename }}"
       with_items: "{{ stat_camel_files_post.results }}"
       ignore_errors: yes
 
