@@ -67,38 +67,38 @@
 
     - name: Convert mtime to formatted date
       set_fact:
-        mtime_date_pre: "{{ item.stat.mtime | int | strftime('%d-%m-%y', 'UTC') }}"
+        date_conversion_pre: "{{ date_conversion_pre | default({}) | combine({item.item.path: (item.stat.mtime | int | strftime('%d-%m-%y'))}) }}"
       with_items: "{{ stat_properties_files_pre.results }}"
       register: date_conversion_pre
 
     - name: Convert mtime to formatted date for camel files
       set_fact:
-        mtime_date_camel_pre: "{{ item.stat.mtime | int | strftime('%d-%m-%y', 'UTC') }}"
+        date_conversion_camel_pre: "{{ date_conversion_camel_pre | default({}) | combine({item.item.path: (item.stat.mtime | int | strftime('%d-%m-%y'))}) }}"
       with_items: "{{ stat_camel_files_pre.results }}"
       register: date_conversion_camel_pre
 
     - name: Create date-based directories for pre-deployment -properties.xml files
       file:
-        path: "{{ destination_dir_pre }}/config_{{ item.mtime_date_pre }}"
+        path: "{{ destination_dir_pre }}/config_{{ date_conversion_pre[item.path] }}"
         state: directory
         mode: '0755'
-      with_items: "{{ date_conversion_pre.results }}"
+      with_items: "{{ properties_files_pre.files }}"
 
     - name: Create date-based directories for pre-deployment camel.xml files
       file:
-        path: "{{ destination_dir_pre }}/config_{{ item.mtime_date_camel_pre }}"
+        path: "{{ destination_dir_pre }}/config_{{ date_conversion_camel_pre[item.path] }}"
         state: directory
         mode: '0755'
-      with_items: "{{ date_conversion_camel_pre.results }}"
+      with_items: "{{ camel_files_pre.files }}"
 
     - name: Copy pre-deployment -properties.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_pre }}/config_{{ item.mtime_date_pre }}/{{ item.item.path | basename }}"
-      with_items: "{{ date_conversion_pre.results }}"
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_pre }}/config_{{ date_conversion_pre[item.path] }}/{{ item.path | basename }}"
+      with_items: "{{ properties_files_pre.files }}"
       ignore_errors: yes
 
     - name: Copy pre-deployment camel.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_pre }}/config_{{ item.mtime_date_camel_pre }}/{{ item.item.path | basename }}"
-      with_items: "{{ date_conversion_camel_pre.results }}"
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_pre }}/config_{{ date_conversion_camel_pre[item.path] }}/{{ item.path | basename }}"
+      with_items: "{{ camel_files_pre.files }}"
       ignore_errors: yes
 
     - name: Mask passwords in pre-deployment -properties.xml files
@@ -110,38 +110,38 @@
 
     - name: Convert mtime to formatted date for post-deployment -properties.xml files
       set_fact:
-        mtime_date_post: "{{ item.stat.mtime | int | strftime('%d-%m-%y', 'UTC') }}"
+        date_conversion_post: "{{ date_conversion_post | default({}) | combine({item.item.path: (item.stat.mtime | int | strftime('%d-%m-%y'))}) }}"
       with_items: "{{ stat_properties_files_post.results }}"
       register: date_conversion_post
 
     - name: Convert mtime to formatted date for post-deployment camel files
       set_fact:
-        mtime_date_camel_post: "{{ item.stat.mtime | int | strftime('%d-%m-%y', 'UTC') }}"
+        date_conversion_camel_post: "{{ date_conversion_camel_post | default({}) | combine({item.item.path: (item.stat.mtime | int | strftime('%d-%m-%y'))}) }}"
       with_items: "{{ stat_camel_files_post.results }}"
       register: date_conversion_camel_post
 
     - name: Create date-based directories for post-deployment -properties.xml files
       file:
-        path: "{{ destination_dir_post }}/config_{{ item.mtime_date_post }}"
+        path: "{{ destination_dir_post }}/config_{{ date_conversion_post[item.path] }}"
         state: directory
         mode: '0755'
-      with_items: "{{ date_conversion_post.results }}"
+      with_items: "{{ properties_files_post.files }}"
 
     - name: Create date-based directories for post-deployment camel.xml files
       file:
-        path: "{{ destination_dir_post }}/config_{{ item.mtime_date_camel_post }}"
+        path: "{{ destination_dir_post }}/config_{{ date_conversion_camel_post[item.path] }}"
         state: directory
         mode: '0755'
-      with_items: "{{ date_conversion_camel_post.results }}"
+      with_items: "{{ camel_files_post.files }}"
 
     - name: Copy post-deployment -properties.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_post }}/config_{{ item.mtime_date_post }}/{{ item.item.path | basename }}"
-      with_items: "{{ date_conversion_post.results }}"
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_post }}/config_{{ date_conversion_post[item.path] }}/{{ item.path | basename }}"
+      with_items: "{{ properties_files_post.files }}"
       ignore_errors: yes
 
     - name: Copy post-deployment camel.xml files to date-based directories
-      shell: cp -p "{{ item.item.path }}" "{{ destination_dir_post }}/config_{{ item.mtime_date_camel_post }}/{{ item.item.path | basename }}"
-      with_items: "{{ date_conversion_camel_post.results }}"
+      shell: cp -p "{{ item.path }}" "{{ destination_dir_post }}/config_{{ date_conversion_camel_post[item.path] }}/{{ item.path | basename }}"
+      with_items: "{{ camel_files_post.files }}"
       ignore_errors: yes
 
     - name: Mask passwords in post-deployment -properties.xml files
