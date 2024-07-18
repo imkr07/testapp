@@ -1,6 +1,6 @@
 - name: Separate and process XML files
   hosts: fbservers
-  tags: masking
+  tags: masking_date
   vars:
     source_dir_pre: "/colt/devops/config/pre-deployment"
     source_dir_post: "/colt/devops/config/post-deployment"
