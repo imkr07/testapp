@@ -1,0 +1,365 @@
+---
+
+- name: "Upsert env variable APP_VERSION {{ fenergo_version }}"
+  shell: echo "APP_VERSION={{ fenergo_version }}" >> ~/.bash_profile
+  tags: setup, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-cyberseclogs-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-cyberseclogs-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='loginLogoutReportSchedulerEnabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='auditReportSchedulerEnabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='idReportSchedulerEnabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='profileAuditReportSchedulerEnabled']", value: "false", attribute: "value" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+
+- name: fb_schedulers.yml -  schedulers in message-broker-bpsi-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-bpsi-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='deliverySchedulerEnabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='releaseSchedulerEnabled']", value: "false", attribute: "value" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml -  schedulers in message-broker-bpsi-properties.xml(jwt)
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-bpsi-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='bpsiJwtServiceEnabled']", value: "true", attribute: "value" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-inflight-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-inflight-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='enabled']", value: "true", attribute: "value" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-verifieddata-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-verifieddata-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='enableBatchProcessing']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='VDInputFileCronSchedule']", value: "false", attribute: "enabled"}
+    - { xpath: "/ns:configuration/ns:entities/ns:fileFilter[@name='VDInputFileHouseKeepingFilter']", value: "false", attribute: "enabled"}
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-file-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-file-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.enabled }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='bulkUploadCronSchedule']", enabled: "true", attribute: "enabled" }
+    - { xpath: "/ns:configuration/ns:entities/ns:fileFilter[@name='houseKeepingLastModifiedFilter']", enabled: "true", attribute: "enabled" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-arm-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-arm-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.enabled }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='ARMArchiveFileCronScheduler']", enabled: "false", attribute: "enabled" }
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='ARMProcessingFileCronScheduler']", enabled: "false", attribute: "enabled" }
+    - { xpath: "/ns:configuration/ns:entities/ns:fileFilter[@name='ARMArchiveFileHouseKeepingFilter']", enabled: "false", attribute: "enabled" }
+    - { xpath: "/ns:configuration/ns:entities/ns:fileFilter[@name='ARMProcessingFileHouseKeepingFilter']", enabled: "false", attribute: "enabled" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - cron in message-broker-arm-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-arm-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='consumeCron']", value: "0+0+3+?+2+MON#5", attribute: "value" }
+  when: env_namespace == 'non-prod'
+  tags: arm-cron-disable, fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-datamigration-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-datamigration-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.enabled }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='DMInputFileCronSchedule']", enabled: "true", attribute: "enabled" }
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='DMPersistedFileCronSchedule']", enabled: "true", attribute: "enabled" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-cra-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-cra-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.enabled }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='EDMPArchiveFileCronScheduler']", enabled: "true", attribute: "enabled" }
+    - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='EDMPProcessingFileCronScheduler']", enabled: "true", attribute: "enabled" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - schedulers in message-broker-edmp-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-edmp-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.enabled }}"
+  with_items:
+  - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='EDMPControlFileCronScheduler']", enabled: "false", attribute: "enabled" }
+  - { xpath: "/ns:configuration/ns:entities/ns:scheduler[@name='EDMPReconciliationFileCronScheduler']", enabled: "false", attribute: "enabled" }
+  - { xpath: "/ns:configuration/ns:entities/ns:fileFilter[@name='EDMPControlFileHouseKeepingFilter']", enabled: "false", attribute: "enabled" }
+  - { xpath: "/ns:configuration/ns:entities/ns:fileFilter[@name='EDMPReconciliationFileHouseKeepingFilter']", enabled: "false", attribute: "enabled" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, deploy
+
+- name: fb_schedulers.yml - disable schedulers in message-broker-scheduler-properties.xml
+  xml:
+    path: "{{ HOME_DIR }}/FenergoMessageBroker/config/message-broker-scheduler-properties.xml"
+    namespaces:
+       ns: http://www.fenergo.com/Message-Broker/properties
+    xpath: "{{ item.xpath }}"
+    attribute: "{{ item.attribute }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='avox_update_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='wco_update_enabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='orgid_update_enabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='orgid_orgIdRequestPoll_enabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='dnb_update_enabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='test_update_enabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='regularReviewJob_enabled']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='sessionsCleanupJob_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='agencyRequestJobCompleteAssociatedCasesTasks_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='scheduledReviewJob_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='updateScheduledReviewStatus_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='giinrevalidation_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='updatepriority_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='preRegularReviewJob_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='updateEAFFinalAssesmentRating_enabled']", value: "true", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='avox_update_useMocks']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='wco_update_useMocks']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='orgid_update_useMocks']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='orgid_orgIdRequestPoll_useMocks']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='dnb_update_useMocks']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='test_update_useMocks']", value: "false", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_sessionsCleanupJob']", value: "0 0 1 * * ? *", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_agencyRequestJobCompleteAssociatedCasesTasks']", value: "0 0 1 * * ? *", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_scheduledReviewJob']", value: "0 0 22 * * ? *", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_giinrevalidation']", value: "0 0 22 1 JUL ? *", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_updateScheduledReviewStatus']", value: "0 0 22 * * ? *", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_updatepriority']", value: "0 0 1 * * ? *", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_preRegularReviewJob']", value: "0 0 22 * * ? *", attribute: "value" }
+    - { xpath: "/ns:configuration/ns:provider/ns:entry[@name='schedule_time_updateEAFFinalAssesmentRating']", value: "0 0 22 * * ? *", attribute: "value" }
+  when: env_namespace == 'non-prod'
+  tags: fb_final_scheduler_prod, scheduler-update, deploy
+
+- name: Create a folder to post config directory
+  file:
+    path: "{{ DEVOPS_WS }}/config/post-deployment"
+    state: directory
+  tags: deploy, postdeploymentconfig
+
+- name: Take a backup camel and properties file
+  copy:
+    src: "/colt/FenergoMessageBroker/config/{{item}}"
+    dest: "/colt/devops/config/post-deployment"
+    remote_src: yes
+    mode: 0755
+  with_items:
+    - 'message-broker-avox-camel.xml'
+    - 'message-broker-arm-camel.xml'
+    - 'message-broker-canonical-camel.xml'
+    - 'message-broker-canonicalbulkedit-camel.xml'
+    - 'message-broker-bulkcombined-camel.xml'
+    - 'message-broker-bpsi-camel.xml'
+    - 'message-broker-avox-fenergo-api-camel.xml'
+    - 'message-broker-datamigration-camel.xml'
+    - 'message-broker-cyberseclogs-camel.xml'
+    - 'message-broker-cra-camel.xml'
+    - 'message-broker-controlfile-camel.xml'
+    - 'message-broker-cc-camel.xml'
+    - 'message-broker-canonicalbulkedit-properties.xml'
+    - 'message-broker-generic-camel.xml'
+    - 'message-broker-file-properties.xml'
+    - 'message-broker-filenet-camel.xml'
+    - 'message-broker-file-camel.xml'
+    - 'message-broker-edmp-camel.xml'
+    - 'message-broker-dmu-properties.xml'
+    - 'message-broker-dmu-camel.xml'
+    - 'message-broker-dayzero-camel.xml'
+    - 'message-broker-onecert-camel.xml'
+    - 'message-broker-nack-camel.xml'
+    - 'message-broker-main-camel.xml'
+    - 'message-broker-inflight-camel.xml'
+    - 'message-broker-icdms-camel.xml'
+    - 'message-broker-gnsasync-camel.xml'
+    - 'message-broker-generic-properties.xml'
+    - 'message-broker-verifieddata-camel.xml'
+    - 'message-broker-sqltasks-camel.xml'
+    - 'message-broker-scistamping-camel.xml'
+    - 'message-broker-scheduler-camel.xml'
+    - 'message-broker-core-properties.xml'
+    - 'message-broker-main-properties.xml'
+    - 'message-broker-cc-properties.xml'
+    - 'message-broker-filenet-properties.xml'
+    - 'message-broker-bulkcombined-properties.xml'
+    - 'message-broker-icdms-properties.xml'
+    - 'message-broker-datamigration-properties.xml'
+    - 'log4j.properties'
+    - 'log4j2.xml'
+    - 'message-broker-cra-properties.xml'
+    - 'message-broker-gnsasync-properties.xml'
+    - 'message-broker-avox-properties.xml'
+    - 'message-broker-sqltasks-properties.xml'
+    - 'message-broker-onecert-properties.xml'
+    - 'message-broker-dayzero-properties.xml'
+    - 'message-broker-canonical-properties.xml'
+    - 'message-broker-scistamping-properties.xml'
+    - 'message-broker-nack-properties.xml'
+    - 'message-broker-cyberseclogs-properties.xml'
+    - 'message-broker-bpsi-properties.xml'
+    - 'message-broker-inflight-properties.xml'
+    - 'message-broker-verifieddata-properties.xml'
+    - 'message-broker-arm-properties.xml'
+    - 'message-broker-edmp-properties.xml'
+    - 'message-broker-scheduler-properties.xml'
+    - 'message-broker-controlfile-properties.xml'
+  tags: deploy, postdeploymentconfig
+
+- name: Create a folder to post config directory
+  file:
+    path: "{{ DEVOPS_WS }}/spring-extensions/post-deployment"
+    state: directory
+  tags: deploy, postdeploymentconfig
+
+- name: Backup spring-extensions
+  copy:
+    src: "{{item}}"
+    dest: "/colt/devops/spring-extensions/post-deployment"
+    remote_src: yes
+    mode: 0755
+  with_items:
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_master.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_ibmmq.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_dataSource.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_activemq.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_xmlsign.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_tibco.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_solace.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_scb_cxf.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_rest.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_restSCB.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_gnsasync.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_quartz_cluster.xml"
+    - "/colt/FenergoMessageBroker/config/spring-extensions/external_bpsi_hazelcast_cluster.xml"
+  ignore_errors: true
+  tags: deploy, postdeploymentconfig
+
+- name: sorting files according to date
+  shell: cp -R {{ item.src }} {{item.dest}}
+  with_items:
+    - { src: "/colt/devops/config", dest: "/colt/devops/config-{{lookup('pipe','date +%Y%m%d%H%M%S')}}" }
+  tags: deploy, postdeploymentconfig, Backup_sorting
+
+- name: compare files - get files from pre deployment folders
+  find:
+    paths: /colt/devops/config/pre-deployment
+    file_type: file
+    recurse: yes
+  register: pre_deployment_files
+  tags: deploy, compareconfig
+
+- name: compare files - get files from pre deployment folders
+  find:
+    paths: /colt/devops/spring-extensions/pre-deployment
+    file_type: file
+    recurse: yes
+  register: pre_deployment_files
+  tags: deploy, compareconfig
+
+- name: get files from post deployment folders
+  find:
+    paths: /colt/devops/config/post-deployment
+    file_type: file
+    recurse: yes
+  register: post_deployment_files
+  tags: deploy, compareconfig
+
+- name: get files from post deployment folders
+  find:
+    paths: /colt/devops/spring-extensions/post-deployment
+    file_type: file
+    recurse: yes
+  register: post_deployment_files
+  tags: deploy, compareconfig
+
+- name: Assert that both folders and compare files
+  shell: "diff /colt/devops/config/pre-deployment /colt/devops/config/post-deployment > /colt/devops/config/comparison_result.txt"
+  register: diff_result
+  ignore_errors: yes
+  tags: deploy, compareconfig
+
+- name: Assert that both folders and compare files
+  shell: "diff /colt/devops/spring-extensions/pre-deployment /colt/devops/spring-extensions/post-deployment > /colt/devops/spring-extensions/comparison_result.txt"
+  register: diff_result
+  ignore_errors: yes
+  tags: deploy, compareconfig
+
+- name: print comparison result
+  debug:
+    msg: "{{ diff_result.stdout + diff_result.stderr}}"
+  tags: deploy, compareconfig
+
+- name: Deploy hotfixes
+  import_tasks: hotfix.yml
