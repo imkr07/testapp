@@ -1,0 +1,93 @@
+- name: "Upsert env variable APP_VERSION {{ fenergo_version }}"
+  shell: echo "APP_VERSION={{ fenergo_version }}" >> ~/.bash_profile
+  tags: setup, deploy
+
+# ... [rest of the existing tasks]
+
+- name: Create a folder for camel files
+  file:
+    path: "/colt/devops/config-{{ lookup('pipe', 'date +%d-%m-%y') }}/camel"
+    state: directory
+  tags: deploy, postdeploymentconfig
+
+- name: Create a folder for properties files
+  file:
+    path: "/colt/devops/config-{{ lookup('pipe', 'date +%d-%m-%y') }}/properties"
+    state: directory
+  tags: deploy, postdeploymentconfig
+
+- name: Backup camel files
+  copy:
+    src: "/colt/FenergoMessageBroker/config/{{ item }}"
+    dest: "/colt/devops/config-{{ lookup('pipe', 'date +%d-%m-%y') }}/camel"
+    remote_src: yes
+    mode: 0755
+  with_items:
+    - 'message-broker-avox-camel.xml'
+    - 'message-broker-arm-camel.xml'
+    - 'message-broker-canonical-camel.xml'
+    - 'message-broker-canonicalbulkedit-camel.xml'
+    - 'message-broker-bulkcombined-camel.xml'
+    - 'message-broker-bpsi-camel.xml'
+    - 'message-broker-avox-fenergo-api-camel.xml'
+    - 'message-broker-datamigration-camel.xml'
+    - 'message-broker-cyberseclogs-camel.xml'
+    - 'message-broker-cra-camel.xml'
+    - 'message-broker-controlfile-camel.xml'
+    - 'message-broker-cc-camel.xml'
+    - 'message-broker-generic-camel.xml'
+    - 'message-broker-file-camel.xml'
+    - 'message-broker-filenet-camel.xml'
+    - 'message-broker-edmp-camel.xml'
+    - 'message-broker-dmu-camel.xml'
+    - 'message-broker-dayzero-camel.xml'
+    - 'message-broker-onecert-camel.xml'
+    - 'message-broker-nack-camel.xml'
+    - 'message-broker-main-camel.xml'
+    - 'message-broker-inflight-camel.xml'
+    - 'message-broker-icdms-camel.xml'
+    - 'message-broker-gnsasync-camel.xml'
+    - 'message-broker-verifieddata-camel.xml'
+    - 'message-broker-sqltasks-camel.xml'
+    - 'message-broker-scistamping-camel.xml'
+    - 'message-broker-scheduler-camel.xml'
+  tags: deploy, postdeploymentconfig
+
+- name: Backup properties files
+  copy:
+    src: "/colt/FenergoMessageBroker/config/{{ item }}"
+    dest: "/colt/devops/config-{{ lookup('pipe', 'date +%d-%m-%y') }}/properties"
+    remote_src: yes
+    mode: 0755
+  with_items:
+    - 'message-broker-canonicalbulkedit-properties.xml'
+    - 'message-broker-file-properties.xml'
+    - 'message-broker-core-properties.xml'
+    - 'message-broker-main-properties.xml'
+    - 'message-broker-cc-properties.xml'
+    - 'message-broker-filenet-properties.xml'
+    - 'message-broker-bulkcombined-properties.xml'
+    - 'message-broker-icdms-properties.xml'
+    - 'message-broker-datamigration-properties.xml'
+    - 'log4j.properties'
+    - 'log4j2.xml'
+    - 'message-broker-cra-properties.xml'
+    - 'message-broker-gnsasync-properties.xml'
+    - 'message-broker-avox-properties.xml'
+    - 'message-broker-sqltasks-properties.xml'
+    - 'message-broker-onecert-properties.xml'
+    - 'message-broker-dayzero-properties.xml'
+    - 'message-broker-canonical-properties.xml'
+    - 'message-broker-scistamping-properties.xml'
+    - 'message-broker-nack-properties.xml'
+    - 'message-broker-cyberseclogs-properties.xml'
+    - 'message-broker-bpsi-properties.xml'
+    - 'message-broker-inflight-properties.xml'
+    - 'message-broker-verifieddata-properties.xml'
+    - 'message-broker-arm-properties.xml'
+    - 'message-broker-edmp-properties.xml'
+    - 'message-broker-scheduler-properties.xml'
+    - 'message-broker-controlfile-properties.xml'
+  tags: deploy, postdeploymentconfig
+
+# ... [rest of the existing tasks]
