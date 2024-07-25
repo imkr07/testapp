@@ -1,9 +1,11 @@
 import requests
-import smtplib
+from requests.auth import HTTPBasicAuth
 
 # Configuration
-PROMETHEUS_URL = "https://10.198.24.252:9090"  # HTTPS with TLS for Prometheus
-GRAFANA_URL = "http://10.198.24.252:3000"      # HTTP for Grafana
+PROMETHEUS_URL = "https://10.198.24.252:9090"
+GRAFANA_URL = "http://10.198.24.252:3000"
+PROMETHEUS_USER = 'your_username'
+PROMETHEUS_PASSWORD = 'your_password'
 SMTP_SERVER = '10.23.225.37'
 SENDER = 'cldm.devops@scbdev.com'
 RECEIVERS = ['indireddy.mohankrishnareddy@sc.com', 'second.email@example.com']
@@ -21,10 +23,10 @@ def send_email(subject, message):
         print("Error: couldn't send the mail")
         print(e)
 
-# Function to check service availability
-def check_service(url, service_name, verify_ssl=True):
+# Function to check service availability with Basic Authentication
+def check_service(url, service_name, auth=None, verify_ssl=True):
     try:
-        response = requests.get(url, verify=verify_ssl)
+        response = requests.get(url, auth=auth, verify=verify_ssl)
         if response.status_code == 200:
             print(f"{service_name} is up and running.")
             return service_name, "UP"
@@ -40,8 +42,8 @@ def check_service(url, service_name, verify_ssl=True):
 
 # Check Prometheus and Grafana
 services = [
-    check_service(PROMETHEUS_URL, "Prometheus", verify_ssl=True),  # Verify SSL certificate for Prometheus
-    check_service(GRAFANA_URL, "Grafana", verify_ssl=False)        # No SSL verification for Grafana (HTTP)
+    check_service(PROMETHEUS_URL, "Prometheus", auth=HTTPBasicAuth(PROMETHEUS_USER, PROMETHEUS_PASSWORD), verify_ssl=True),
+    check_service(GRAFANA_URL, "Grafana", verify_ssl=False)
 ]
 
 # Prepare data for table
