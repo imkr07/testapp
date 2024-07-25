@@ -2,8 +2,8 @@ import requests
 import smtplib
 
 # Configuration
-PROMETHEUS_URL = "https://10.198.24.252:9090"
-GRAFANA_URL = "http://10.198.24.252:3000"
+PROMETHEUS_URL = "https://10.198.24.252:9090"  # HTTPS with TLS for Prometheus
+GRAFANA_URL = "http://10.198.24.252:3000"      # HTTP for Grafana
 SMTP_SERVER = '10.23.225.37'
 SENDER = 'cldm.devops@scbdev.com'
 RECEIVERS = ['indireddy.mohankrishnareddy@sc.com', 'second.email@example.com']
@@ -31,14 +31,17 @@ def check_service(url, service_name, verify_ssl=True):
         else:
             print(f"{service_name} is down. Status code: {response.status_code}")
             return service_name, "DOWN"
+    except requests.exceptions.SSLError as ssl_err:
+        print(f"{service_name} SSL error: {ssl_err}")
+        return service_name, "SSL_ERROR"
     except requests.exceptions.RequestException as e:
         print(f"{service_name} is down. Error: {e}")
         return service_name, "DOWN"
 
 # Check Prometheus and Grafana
 services = [
-    check_service(PROMETHEUS_URL, "Prometheus", verify_ssl=False),  # Assuming self-signed SSL certificate
-    check_service(GRAFANA_URL, "Grafana")
+    check_service(PROMETHEUS_URL, "Prometheus", verify_ssl=True),  # Verify SSL certificate for Prometheus
+    check_service(GRAFANA_URL, "Grafana", verify_ssl=False)        # No SSL verification for Grafana (HTTP)
 ]
 
 # Prepare data for table
@@ -49,17 +52,17 @@ for service in services:
 # Create the table as a string
 table = ""
 for row in table_data:
-    table += "{:<20} {:<6}\n".format(*row)
+    table += "{:<20} {:<10}\n".format(*row)
 
 # Print the table to console
 print(table)
 
-# Send email only if any service is down
-down_services = [service for service in services if service[1] == "DOWN"]
+# Send email only if any service is down or there is an SSL error
+down_services = [service for service in services if service[1] in ["DOWN", "SSL_ERROR"]]
 if down_services:
-    message = "The following services are down:\n\n"
+    message = "The following services are down or have SSL issues:\n\n"
     message += table
-    message += "\n\nWork on it immediately."
+    message += "\n\nPlease investigate immediately."
     
     print("Sending email...")
     send_email(SUBJECT, message)
