@@ -1,51 +1,72 @@
 import requests
 import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # Configuration
-PROMETHEUS_URL = "http://10.198.24.252:9090"
-GRAFANA_URL = "http://10.198.24.252:3000"
-SMTP_SERVER = '10.23.225.37'
-SENDER = 'cldm.devops@scbdev.com'
-RECEIVER = 'indireddy.mohankrishnareddy@sc.com'
-SUBJECT = 'Status of Monitoring Service'
+URL = "https://your-website.com"
+EMAIL_HOST = 'smtp.example.com'
+EMAIL_PORT = 587
+EMAIL_USER = 'your-email@example.com'
+EMAIL_PASS = 'your-email-password'
+EMAIL_TO = ['alert-recipient@example.com']
+EMAIL_SUBJECT = 'Service Down Alert: HTTPS Monitoring'
 
-# Function to send email
-def send_email(subject, message):
+# Function to send email alerts
+def send_email_alert(subject, message):
     try:
-        smtp_obj = smtplib.SMTP(SMTP_SERVER)
-        email_message = f"From: {SENDER}\nTo: {RECEIVER}\nSubject: {subject}\n\n{message}"
-        smtp_obj.sendmail(SENDER, RECEIVER, email_message)
-        smtp_obj.quit()
-        print("Mail sent")
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_USER
+        msg['To'] = ', '.join(EMAIL_TO)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(message, 'plain'))
+
+        server = smtplib.SMTP(EMAIL_HOST, EMAIL_PORT)
+        server.starttls()
+        server.login(EMAIL_USER, EMAIL_PASS)
+        server.sendmail(EMAIL_USER, EMAIL_TO, msg.as_string())
+        server.quit()
+
+        print("Email alert sent successfully.")
     except Exception as e:
-        print("Error: couldn't send the mail")
-        print(e)
+        print(f"Failed to send email alert: {e}")
 
-# Function to check service availability
-def check_service(url, service_name):
+# Function to check HTTPS connection
+def check_https_connection(url):
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10, verify=True)  # Set timeout to 10 seconds
         if response.status_code == 200:
-            print(f"{service_name} is up and running.")
-            return f"{service_name} is up and running."
+            print(f"Connection to {url} is successful. Status code: {response.status_code}")
+            return True
         else:
-            print(f"{service_name} is down. Status code: {response.status_code}")
-            return f"{service_name} is down. Status code: {response.status_code}"
-    except requests.exceptions.RequestException as e:
-        print(f"{service_name} is down. Error: {e}")
-        return f"{service_name} is down. Error: {e}"
+            print(f"Connection to {url} failed. Status code: {response.status_code}")
+            return False
 
-# Check Prometheus and Grafana
-prometheus_status = check_service(PROMETHEUS_URL, "Prometheus")
-grafana_status = check_service(GRAFANA_URL, "Grafana")
+    except requests.exceptions.SSLError as ssl_error:
+        print(f"SSL error occurred: {ssl_error}")
+        return False
 
-# Debug prints to trace the values
-print(f"Prometheus status: {prometheus_status}")
-print(f"Grafana status: {grafana_status}")
+    except requests.exceptions.ConnectionError as conn_error:
+        print(f"Connection error occurred: {conn_error}")
+        return False
 
-# Prepare the email message
-message = f"Prometheus status: {prometheus_status}\nGrafana status: {grafana_status}\n"
+    except requests.exceptions.Timeout:
+        print("The request timed out.")
+        return False
 
-# Always send an email
-print("Sending email...")
-send_email(SUBJECT, message)
+    except requests.exceptions.RequestException as req_error:
+        print(f"An error occurred: {req_error}")
+        return False
+
+# Main monitoring function
+def monitor_https_service(url):
+    service_up = check_https_connection(url)
+    if not service_up:
+        alert_message = f"ALERT: Service at {url} is down."
+        send_email_alert(EMAIL_SUBJECT, alert_message)
+    else:
+        print("Service is up and running smoothly.")
+
+# Start monitoring
+if __name__ == "__main__":
+    monitor_https_service(URL)
