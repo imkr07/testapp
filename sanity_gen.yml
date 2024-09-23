@@ -1,0 +1,533 @@
+---
+- name: application_sanity.yml - Sanity check ActiveMq Servers
+  hosts: amqservers
+  gather_facts: false
+  tasks:
+    - name: application_sanity.yml - ActiveMq Sanity steps
+      block:
+        - name: application_sanity.yml- Test ActiveMq connectivity in PRD
+          uri:
+            url: "http://{{ amq_prd_dns }}:9161/admin"
+            user: "admin"
+            password: "activemqadmin"
+            status_code: 200
+            validate_certs: no
+          delegate_to: localhost
+          no_log: false
+          ignore_errors: True
+          register: amq_prd
+          tags: sanity, sanity_amq
+        - name: application_sanity.yml - Test ActiveMq connectivity in DR
+          uri:
+            url: "http://{{ amq_dr_dns }}:9161/admin"
+            user: "admin"
+            password: "activemqadmin"
+            status_code: 200
+            validate_certs: no
+          delegate_to: localhost
+          no_log: false
+          ignore_errors: True
+          register: amq_dr
+          tags: sanity,sanity_amq
+        - fail:
+            msg: "Both the ActiveMq services are down"
+          when: amq_prd.failed == true and amq_dr.failed == true
+          tags: sanity,sanity_amq
+      run_once: true
+- name: application_sanity.yml- Sanity check for Hazelcast servers
+  hosts: hazservers
+  gather_facts: false
+  tasks:
+    - name: application_sanity.yml - Test Hazelcast service
+      uri:
+         url: "http://{{ ansible_host }}:5701/hazelcast/health"
+         status_code: 200
+         validate_certs: no
+      delegate_to: localhost
+      tags: sanity, sanity_hazel
+    - name: application_sanity.yml - Test Hazelcast Mancenter service - standalone
+      uri:
+         url: "http://{{ ansible_host }}:{{fen_hazelcast_mancenter_port}}/hazelcast-mancenter/login.html"
+         status_code: 200
+         validate_certs: no
+      delegate_to: localhost
+      when: fen_hazelcast_setup_type == "standalone"
+      tags: sanity, sanity_hazel
+    - name: application_sanity.yml - Test Hazelcast Mancenter connection client -CONNECTED
+      shell : |
+         URL="http://{{ ansible_host }}:5701/hazelcast/rest/clusters/dev/clients"
+         response=$(curl -s "$URL")
+         if [ $? -eq 0 ]; then
+                 clients=$(echo "$response" | grep -E 'ConnectionCount')
+                 if [ -n "$response" ]; then
+                         echo "$clients"
+                 else
+                         echo "string not found"
+                 fi
+         else
+                 echo "Error fetching data from $URL"
+         fi
+      register: client_details
+    - name: print hazelcast client details
+      debug:
+        var: client_details.stdout
+      tags: sanity, sanity_hazel
+    - name: application_sanity.yml - Test Hazelcast Mancenter service - cluster
+      uri:
+         url: "http://{{ ansible_host }}:9090/hazelcast-mancenter/login.html"
+         status_code: 200
+         validate_certs: no
+      delegate_to: localhost
+      when:
+      - fen_hazelcast_setup_type == "cluster"
+      - ansible_host == fen_hazelcast_pri_mc or ansible_host == fen_hazelcast_sec_mc
+- name: application_sanity.yml - Sanity check Fenergo ES layer
+  hosts: esservers
+  gather_facts: false
+  tasks:
+    - name: application_sanity.yml - Test ElasticSearch - server
+      uri:
+         url: "https://{{ ansible_host }}:9200/_cat/indices?v"
+         user: "{{ fen_es_username }}"
+         password: "ergo.1234"
+         force_basic_auth: yes
+         status_code: 200
+         validate_certs: no
+      delegate_to: localhost
+      tags: sanity, sanity_es
+    - name: application_sanity.yml - Test ElasticSearch - F5
+      uri:
+         url: "https://{{ fen_es_lb_uri }}:9200/_cat/indices?v"
+         user: "{{ fen_es_username }}"
+         password: "ergo.1234"
+         force_basic_auth: yes
+         status_code: 200
+         validate_certs: no
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, sanity_es
+    - name: application_sanity.yml - Test ElasticSearch - indices heath
+      uri:
+        url: "https://{{ fen_es_lb_uri }}:9200/_cluster/health"
+        user: "{{ fen_es_username }}"
+        password: "ergo.1234"
+        validate_certs: no
+        method: GET
+      register: elastic_health
+      tags: sanity, sanity_es
+    - name: Fail task if indeices health is not green
+      fail:
+        msg: "elastic indices health is not green"
+      when: elastic_health.json.status !="green"
+      tags: sanity, sanity_es
+- name: application_sanity.yml - Sanity check Fenergo UI layer
+  hosts: uiservers
+  vars:
+    ansible_password: "{{windows_server_password}}"
+    fen_app_name: "ColtFenergo"
+  gather_facts: false
+  tasks:
+    - name: application_sanity.yml - Test health check URL's of UI node with server IP
+      uri:
+        url: "{{item}}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      with_items:
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Heartbeat.ashx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}.IdP/Trust/FenergoSTS.svc?wsdl"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Workflows/GenericActivityWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Services/ProcessService.svc"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Services/VerifiedDataService.svc"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Workflows/GenericWorkflow.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Workflows/GenericWorkflowV1.1.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Workflows/GenericWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Services/ExternalDataAsyncService.svc"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}/{{fen_app_name}}/Services/ExternalDataSyncService.svc"
+      delegate_to: localhost
+      tags: sanity, sanity_ui
+    - name: application_sanity.yml - Test health check URL's of UI node with F5
+      uri:
+        url: "{{item}}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      with_items:
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Heartbeat.ashx"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}.IdP/Trust/FenergoSTS.svc?wsdl"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Workflows/GenericActivityWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Services/ProcessService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Services/VerifiedDataService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Workflows/GenericWorkflow.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Workflows/GenericWorkflowV1.1.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Workflows/GenericWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Services/ExternalDataAsyncService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_ui_lb_uri }}/{{fen_app_name}}/Services/ExternalDataSyncService.svc"
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, sanity_ui, ui_f5_sanity
+    - name: application_sanity.yml - DB connection check - RW
+      win_shell: "echo exit | sqlplus sa/{{ role_sa_password }}@{{db_rw_tnsname}}"
+      register: db_connection_check
+      failed_when: '"ORA-" in db_connection_check.stdout'
+      tags: sanity, sanity_db, db_sanity
+    - name: application_sanity.yml - DB connection check - RO
+      win_shell: "echo exit | sqlplus sa/{{ role_sa_password }}@{{db_ro_tnsname}}"
+      register: db_connection_check
+      failed_when: '"ORA-" in db_connection_check.stdout'
+      tags: db_sanity
+- name: application_sanity.yml - Sanity check Fenergo BG layer
+  hosts: bgservers
+  vars:
+    fen_app_name: "ColtFenergo"
+    ansible_password: "{{windows_server_password}}"
+  gather_facts: false
+  tasks:
+    - name: application_sanity.yml - Test health check URL's of BG node with server IP
+      uri:
+        url: "{{item}}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      with_items:
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Heartbeat.ashx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}.IdP/Trust/FenergoSTS.svc?wsdl"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericActivityWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/ProcessService.svc"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/VerifiedDataService.svc"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericWorkflow.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericWorkflowV1.1.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/ExternalDataAsyncService.svc"
+        - "{{ fen_http_protocol }}://{{ ansible_host }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/ExternalDataSyncService.svc"
+      delegate_to: localhost
+      tags: sanity, sanity_bg
+    - name: application_sanity.yml - Test health check URL's of BG node with F5
+      uri:
+        url: "{{item}}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      with_items:
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Heartbeat.ashx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}.IdP/Trust/FenergoSTS.svc?wsdl"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericActivityWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/ProcessService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/VerifiedDataService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericWorkflow.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericWorkflowV1.1.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Workflows/GenericWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/ExternalDataAsyncService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:{{ansible_iis_https_port}}/{{fen_app_name}}/Services/ExternalDataSyncService.svc"
+      delegate_to: localhost
+      run_once: true
+    - name: application_sanity.yml - Test health check URL's of BG node with F5
+      uri:
+        url: "{{item}}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      with_items:
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Heartbeat.ashx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}.IdP/Trust/FenergoSTS.svc?wsdl"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Workflows/GenericActivityWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Services/ProcessService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Services/VerifiedDataService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Workflows/GenericWorkflow.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Workflows/GenericWorkflowV1.1.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Workflows/GenericWorkflowV1.2.xamlx"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Services/ExternalDataAsyncService.svc"
+        - "{{ fen_http_protocol }}://{{ fen_bg_lb_uri }}:443/{{fen_app_name}}/Services/ExternalDataSyncService.svc"
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, bg_f5_sanity, sanity_bg
+    - name: application_sanity.yml - DB connection check - RW
+      win_shell: "echo exit | sqlplus sa/{{ role_sa_password }}@{{db_rw_tnsname}}"
+      register: db_connection_check
+      failed_when: '"ORA-" in db_connection_check.stdout'
+      tags: sanity, db_sanity, sanity_db
+    - name: application_sanity.yml - DB connection check - RO
+      win_shell: "echo exit | sqlplus sa/{{ role_sa_password }}@{{db_ro_tnsname}}"
+      register: db_connection_check
+      failed_when: '"ORA-" in db_connection_check.stdout'
+      tags: db_sanity
+- name: application_sanity.yml - Sanity check Fenergo FB layer
+  hosts: fbservers
+  gather_facts: false
+  tasks:
+    - name: application_sanity.yml - Test Jboss EAP - FDIM - 1 - server
+      uri:
+        url: "https://{{ ansible_host }}:{{fen_fb_fdim_endpoint_port}}/FenergoMessageBroker/ping"
+        user: "{{ fen_fb_fdim_username }}"
+        password: "{{fenergo_fb_fdim_pass}}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      delegate_to: localhost
+      tags: sanity, sanity_fb, health_check_fb
+    - name: application_sanity.yml - Test Jboss EAP - FDIM - 1 - F5
+      uri:
+        url: "https://{{ fen_fb_lb_uri }}:{{fen_fb_fdim_endpoint_port}}/FenergoMessageBroker/ping"
+        user: "{{ fen_fb_fdim_username }}"
+        password: "{{fenergo_fb_fdim_pass}}"
+        force_basic_auth: yes
+        status_code: 200
+        validate_certs: no
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, fb_f5_sanity, sanity_fb, health_check_fb
+    - name: application_sanity.yml - Test Jboss EAP - FDIM - 2 - server
+      uri:
+        url: "https://{{ ansible_host }}:{{fen_fb_fdim_integration_scbema_api_port}}/FenergoMessageBroker/ping"
+        force_basic_auth: yes
+        status_code: 404
+        validate_certs: no
+      delegate_to: localhost
+      tags: sanity, sanity_fb, health_check_fb
+    - name: application_sanity.yml - Test Jboss EAP - FDIM - 2 - F5
+      uri:
+        url: "https://{{ fen_fb_lb_uri }}:{{fen_fb_fdim_integration_scbema_api_port}}/FenergoMessageBroker/ping"
+        force_basic_auth: yes
+        status_code: 404
+        validate_certs: no
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, fb_f5_sanity, sanity_fb, health_check_fb
+    - name: application_sanity.yml - Test JBOSS EAP - BRE - server
+      uri:
+        url: "https://{{ ansible_host }}:{{fen_fb_bre_endpoint_port}}/RulesEngine/RulesEngineService"
+        status_code: 200
+        validate_certs: no
+      delegate_to: localhost
+      when: env_name != "colt-lb-01"
+      tags: sanity, sanity_fb, health_check_fb
+    - name: application_sanity.yml - Test JBOSS EAP - BRE - server -NEW
+      uri:
+        url: "https://{{ ansible_host }}:{{fen_fb_bre_endpoint_port_new}}/RulesEngine/RulesEngineService"
+        status_code: 200
+        validate_certs: no
+      delegate_to: localhost
+      when: env_name = "colt-lb-01"
+     - name: application_sanity.yml - Test JBOSS EAP - BRE - F5
+      uri:
+        url: "https://{{ fen_fb_lb_uri }}:{{fen_fb_bre_endpoint_port}}/RulesEngine/RulesEngineService"
+        status_code: 200
+        validate_certs: no
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, fb_f5_sanity, sanity_fb, health_check_fb
+    - name: application_sanity.yml - Check for SSO MOCK status
+      uri:
+        url: "{{sso_uri}}"
+        method: GET
+        return_content: yes
+        body_format: json
+      register: sso_mock_status
+      until: sso_mock_status.status == 200
+      retries: 3
+      delay: 1
+      delegate_to: localhost
+      ignore_errors: true
+      when: ansible_host == sso_mock_host and sso_mock_enabled == 'yes'
+      tags: sanity, mock_sso_sanity, sanity_fb
+    - name: application_sanity.yml - Fail if SSO MOCK is NOT UP
+      fail: msg="#ERROR-COLT-010- SSO MOCK is DOWN!!!!, Please reachout to Devops Team <COLT-ITODevOps@exchange.standardchartered.com>."
+      when:
+      - ansible_host == sso_mock_host and sso_mock_enabled == 'yes'
+      - sso_mock_status.status != 200
+      tags: sanity, mock_sso_sanity, sanity_fb
+    - name: application_sanity.yml - FENERGO FDIM - AVOX connectivity
+      uri:
+        url: "https://{{ ansible_host }}:{{fen_fb_fdim_endpoint_port}}/FenergoMessageBroker/service"
+        method: POST
+        user: "{{ fen_fb_fdim_username }}"
+        password: "{{fenergo_fb_fdim_pass}}"
+        force_basic_auth: yes
+        validate_certs: no
+        headers:
+          Content-Type: "application/xml"
+        return_content: Yes
+        status_code: 200
+        body_format: raw
+        body: "{{ lookup('file','../files/avoxsanityrequest.xml') }}"
+      register: avox_result
+      delegate_to: localhost
+      tags: sanity, avox, sanity_avox
+    - name: application_sanity.yml - Set avox_result_error_code
+      set_fact:
+       avox_result_error_code: "{{ avox_result.content | regex_search('errorCode=\"0\"') }}"
+      tags: sanity, avox, sanity_avox
+    - name: application_sanity.yml - Fail the task when avox_result_error_code is not 0
+      fail: msg="AVOX call returning error code which is not 0"
+      when: avox_result_error_code != 'errorCode="0"'
+      ignore_errors: true
+      tags: sanity, avox, sanity_avox
+- name: application_sanity.yml - Sanity check for Interfaces
+  hosts: interfaces
+  gather_facts: false
+  tasks:
+    - name: application_sanity.yml - COLT IL - STS - issue token service
+      uri:
+        url: "{{ il_sts_issuetoken_url }}"
+        method: GET
+        headers:
+          accept: "application/json"
+          username: "{{ fen_fb_fdim_cra_username }}"
+          password: "{{fenergo_fb_fdim_cra_pass}}"
+        return_content: Yes
+        status_code: 200
+      register: sts_issue_token
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, cra, sanity_filenet, sanity_cra
+    - name: application_sanity.yml - FENERGO FDIM - CRA connectivity
+      uri:
+        url: "{{fen_fb_fdim_cra_protocol}}://{{ fen_fb_fdim_cra_url }}"
+        method: POST
+        headers:
+          accept: "application/json"
+          Authorization: "Bearer {{ sts_issue_token.json.token }}"
+        return_content: Yes
+        status_code: 200
+        body_format: json
+        body: "{{ lookup('file','../files/cra_sanity.json') }}"
+      register: cra_result
+      run_once: true
+      tags: sanity, cra, sanity_cra
+    - name: application_sanity.yml - Set CRA result status
+      set_fact:
+       cra_result_error_code: "{{ cra_result.content | regex_search('status\":\"success\"') }}"
+      tags: sanity, cra, sanity_cra
+    - name: application_sanity.yml - Fail the task when cra_result_error_code is not success
+      fail: msg="CRA call returning status code which is not success"
+      when: cra_result_error_code != 'status\":\"success\"'
+      tags: sanity, cra, sanity_cra
+    - name: application_sanity.yml - FileNet connectivity
+      shell: |
+        curl -X "POST" "http://gb-svc-document-colt-lb-06.apps.colt-np2.ocp.dev.net/api/filenet/updateDocument/v1" \
+        -H "accept: application/json" \
+        -H "Authorization: Bearer {{ sts_issue_token.json.token }}" \
+        -H "Content-Type: multipart/form-data" \
+        -F "file=@../files/filenetcheck.txt;type=text/plain" \
+        -F "data=@../files/filenet.json"
+      register: filenet_result
+      delegate_to: localhost
+      run_once: true
+      tags: sanity, sanity_filenet
+    - name: application_sanity.yml - Set FileNet result status
+      set_fact:
+       filenet_result_error_code: "{{ filenet_result.stdout | regex_search('statusDescription\":\"Success\"') }}"
+      run_once: true
+      tags: sanity, sanity_filenet
+    - name: application_sanity.yml - Fail the task when filenet_result_error_code is not success
+      fail: msg="{{filenet_result.stdout_lines}}"
+      when: filenet_result_error_code != 'statusDescription\":\"Success\"'
+      run_once: true
+- name: application_sanity.yml - grep properties check
+  hosts: fbservers
+  gather_facts: false
+  tasks:
+    - name: Display baseurl value in message-broker-bpsi-properties.xml
+      shell: grep 'name="baseurl"' /colt/FenergoMessageBroker/config/message-broker-bpsi-properties.xml
+      register: output
+      tags: sanity, bpsi_properties
+    - name: Display baseurl content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_properties
+    - name: Display clusterMembers value in message-broker-bpsi-properties.xml
+      shell: grep 'name="clusterMembers"' /colt/FenergoMessageBroker/config/message-broker-bpsi-properties.xml
+      register: output
+      tags: sanity, bpsi_properties
+    - name: Display baseurl content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_properties
+    - name: Display jwtBaseUrl value in message-broker-bpsi-properties.xml
+      shell: grep 'name="jwtBaseUrl"' /colt/FenergoMessageBroker/config/message-broker-bpsi-properties.xml
+      register: output
+      tags: sanity, bpsi_properties
+    - name: Display jwtBaseUrl content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_properties
+    - name: Display hostAppProtocol value in message-broker-bpsi-properties.xml
+      shell: grep 'name="hostAppProtocol"' /colt/FenergoMessageBroker/config/message-broker-bpsi-properties.xml
+      register: output
+      tags: sanity, bpsi_properties
+    - name: Display hostAppProtocol content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_properties
+    - name: Display bpsiJwtProtocol value in message-broker-bpsi-properties.xml
+      shell: grep 'name="bpsiJwtProtocol"' /colt/FenergoMessageBroker/config/message-broker-bpsi-properties.xml
+      register: output
+      tags: sanity, bpsi_properties
+    - name: Display bpsiJwtProtocol content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_properties
+    - name: Display bpsiAuthUserName value in message-broker-bpsi-properties.xml
+      shell: grep 'name="bpsiAuthUserName"' /colt/FenergoMessageBroker/config/message-broker-bpsi-properties.xml
+      register: output
+      tags: sanity, bpsi_properties
+    - name: Display bpsiAuthUserName content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_properties
+    - name: Display bpsiAuthPassword value in message-broker-bpsi-properties.xml
+      shell: grep 'name="bpsiAuthPassword"' /colt/FenergoMessageBroker/config/message-broker-bpsi-properties.xml
+      register: output
+      tags: sanity, bpsi_properties
+    - name: Display bpsiAuthPassword content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_properties
+    - name: Display MockSolaceQueueEnabled value in message-broker-gnsasync-properties.xml
+      shell: grep 'name="MockSolaceQueueEnabled"' /colt/FenergoMessageBroker/config/message-broker-gnsasync-properties.xml
+      register: output
+      tags: sanity, gnsasync_properties
+    - name: Display MockSolaceQueueEnabled content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, gnsasync_properties
+    - name: Display enabled value in message-broker-inflight-properties.xml
+      shell: grep 'name="enabled"' /colt/FenergoMessageBroker/config/message-broker-inflight-properties.xml
+      register: output
+      tags: sanity, inflight_properties
+    - name: Display enabled content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, inflight_properties
+    - name: Display  value in message-broker-main-properties.xml
+      shell: grep 'controlName="issuetoken"' /colt/FenergoMessageBroker/config/message-broker-main-properties.xml
+      register: output
+      tags: sanity, sts_properties
+    - name: Display sts url content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, sts_properties
+    - name: Display  value in message-broker-main-properties.xml
+      shell: grep 'controlName="validatetoken"' /colt/FenergoMessageBroker/config/message-broker-main-properties.xml
+      register: output
+      tags: sanity, sts_properties
+    - name: Display sts url content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, sts_properties
+    - name: Display value in message-broker-cra-properties.xml
+      shell: grep 'name="baseurl"' /colt/FenergoMessageBroker/config/message-broker-cra-properties.xml
+      register: output
+      tags: sanity, cra_properties
+    - name: Display cra url content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, cra_properties
+    - name: Display value in FMB_schemaname.csv
+      shell: cat /colt/FenergoMessageBroker/dataDictionaries/bpsi/FMB_schemaname.csv
+      register: output
+      tags: sanity, bpsi_schema_properties
+    - name: Display cra url content
+      debug:
+        msg: "{{ output.stdout }}"
+      tags: sanity, bpsi_schema_properties
