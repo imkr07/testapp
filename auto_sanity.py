@@ -94,7 +94,7 @@ def main():
     # Define variables
     playbook_path = '/colt/Kaviya/Colt_Sanity/gb-devops-app-deploy/cc_service.yml'
     inventory_path = '/colt/Kaviya/Colt_Sanity/gb-devops-app-deploy/non-prod'
-    to_email = 'aravind.tv@sc.com'
+    to_email = 'indireddy.mohankrishnareddy@sc.com'
     #to_email = 'CLDM-ITO-DevOps@sc.com'
     from_email = 'cldm.devops@scbdev.com'
     smtp_server = '10.23.225.37'  # Specify your SMTP server IP address
