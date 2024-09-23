@@ -1,0 +1,62 @@
+import json
+import pandas as pd
+import subprocess
+
+# Function to run ansible playbook and capture the output
+def run_ansible_playbook(playbook_path, inventory_file):
+    # Command to run ansible-playbook
+    command = [
+        "ansible-playbook", playbook_path,
+        "-i", inventory_file,
+        "--extra-vars", "ansible_python_interpreter=/usr/bin/python3",
+        "--json"
+    ]
+    
+    # Run the command and capture the output
+    result = subprocess.run(command, capture_output=True, text=True)
+    return result.stdout
+
+# Function to parse the ansible output JSON and structure it into a table
+def parse_ansible_output(ansible_output):
+    # Convert output JSON to a Python object
+    output_json = json.loads(ansible_output)
+    
+    # Prepare an empty list to hold the task data
+    task_data = []
+    
+    # Iterate over each host result
+    for host, host_result in output_json['plays'][0]['tasks'].items():
+        for task in host_result['tasks']:
+            task_name = task['task']['name']
+            description = task['task']['action']
+            status = task['result']['status']
+            comment = task['result'].get('msg', 'N/A')
+            
+            # Append the task data as a dictionary
+            task_data.append({
+                "Task Name": task_name,
+                "Description": description,
+                "Status": status,
+                "Comments": comment
+            })
+    
+    return task_data
+
+# Function to convert task data into a pandas DataFrame and print it as a table
+def generate_table(task_data):
+    df = pd.DataFrame(task_data)
+    # Print the dataframe in tabular form
+    print(df.to_string(index=False))
+
+# Path to the playbook and inventory files
+playbook_path = "sanity_check.yml"
+inventory_file = "inventory.ini"
+
+# Step 1: Run the ansible playbook
+ansible_output = run_ansible_playbook(playbook_path, inventory_file)
+
+# Step 2: Parse the output into task data
+task_data = parse_ansible_output(ansible_output)
+
+# Step 3: Generate and display the result table
+generate_table(task_data)
