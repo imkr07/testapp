@@ -1,1 +1,2 @@
   print(f"Playbook STDOUT:\n{result.stdout}")
+print("Playbook STDOUT:\n{}".format(result.stdout))
