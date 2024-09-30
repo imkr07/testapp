@@ -1,0 +1,17 @@
+---
+- name: application_sanity.yml - Sanity check
+  hosts: all
+  gather_facts: false
+  tasks:
+    # Your existing tasks here
+    - name: Collect output
+      set_fact:
+        result_output: "{{ result_output | default([]) + [ { 'task': item.task, 'result': item.result } ] }}"
+      loop: "{{ ansible_playbook.results }}"
+      when: item.result is defined
+
+    - name: Write output to JSON file
+      copy:
+        dest: ~/sanity_output.json
+        content: "{{ result_output | to_json }}"
+      delegate_to: localhost
